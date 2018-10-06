@@ -181,7 +181,7 @@ max_cost = .15
 min_cost = .01
 
 partition = ave_consensus_costs_parition(matrix, min_cost, max_cost)
-
+partition = np.array(partition) + 1
 
 # import thresholded matrix to BCT, import partition, run WMD/PC
 
