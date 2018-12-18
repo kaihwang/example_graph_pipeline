@@ -133,7 +133,7 @@ def power_recursive_partition(matrix, min_cost, max_cost, min_community_size=5):
 			continue
 
 	graph = matrix_to_igraph(final_identity_matrix,cost=1.)
-	final_infomap_partition = graph.community_infomap(edge_weights='weight')
+	final_infomap_partition = np.array(graph.community_infomap(edge_weights='weight').membership)
 	return final_infomap_partition 
 
 
