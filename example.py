@@ -92,7 +92,7 @@ partition'''
 
 
 
-def power_recursive_partition(matrix, min_cost, max_cost):
+def power_recursive_partition(matrix, min_cost, max_cost, min_community_size=5):
 	''' this is the interpretation of what Power did in his 2011 Neuron paper, start with a high cost treshold, get infomap parition, then step down, but keep the
 	parition that did not change across thresholds'''
 
@@ -107,7 +107,8 @@ def power_recursive_partition(matrix, min_cost, max_cost):
 		connected_nodes = []
 		
 		for node in range(partition.graph.vcount()):
-			connected_nodes.append(node)
+			if partition.sizes()[partition.membership[node]] > min_community_size:
+				connected_nodes.append(node)
 		
 		within_community_edges = []
 		between_community_edges = []
