@@ -3,7 +3,9 @@ import bct
 import igraph
 from igraph import Graph, ADJ_UNDIRECTED, VertexClustering
 from itertools import combinations
-
+import nibabel as nib
+import os
+import matplotlib.pyplot as plt
 
 def matrix_to_igraph(matrix,cost,binary=False,check_tri=True,interpolation='midpoint',normalize=False,mst=False,test_matrix=True):
 	"""
@@ -207,5 +209,61 @@ def test_pipline():
 	recursive_partition = recursive_partition + 1
 
 	np.save('rescursive_partition', recursive_partition)
+
+
+def cal_dataset_adjmat(dest='HCP', roi='CA_CIFTI'):
+	'''short hand function to load timeseries from CIFTI(HCP) or NIFTI(others), need to say which dataset and give a ROI parcellation
+	The default is using Cole's network wide parcellation in CIFTI label format for HCP.
+	For MGH/NKI, a NIFTI version of that template is available as CA_2mm
+	'''
+
+	if dset=='HCP':
+
+		subjects = np.loadtxt('/home/kahwang/bin/example_graph_pipeline/HCP_subjects', dtype=int)
+
+		adj = []
+		for s in subjects:
+
+			rest1 = '/data/not_backed_up/shared/HCP/%s/MNINonLinear/Results/rfMRI_REST1_LR/rfMRI_REST1_LR_Atlas_hp2000_clean.dtseries.nii' %s
+			rest2 = '/data/not_backed_up/shared/HCP/%s/MNINonLinear/Results/rfMRI_REST1_RL/rfMRI_REST1_RL_Atlas_hp2000_clean.dtseries.nii' %s
+			rest3 = '/data/not_backed_up/shared/HCP/%s/MNINonLinear/Results/rfMRI_REST2_LR/rfMRI_REST2_LR_Atlas_hp2000_clean.dtseries.nii' %s
+			rest4 = '/data/not_backed_up/shared/HCP/%s/MNINonLinear/Results/rfMRI_REST2_RL/rfMRI_REST2_RL_Atlas_hp2000_clean.dtseries.nii' %s
+
+			rest_runs = [ rest1, rest2, rest3, rest4]
+			parcel_template = '/data/backed_up/shared/ROIs/' + roi + '.nii'
+			tmp_cifti = '/home/kahwang/tmp/tmpfile.ptseries.nii'
+
+			ptseries = np.array([])
+			for r in rest_runs:
+
+				# export mean ts for each parcel using wb_command, because it deals with CIFTI....
+				os.system('wb_command -cifti-parcellate ' + r + ' ' + parcel_template + ' COLUMN ' + tmp_cifti + ' -method MEAN')
+				if ptseries.size ==0:
+					ptseries = np.squeeze(nib.load(tmp_cifti).get_data()).T
+				else:
+					ptseries = np.concatenate([ptseries, np.squeeze(nib.load(tmp_cifti).get_data()).T], axis=1)
+
+			#calculate corrcoef, then take fisher z transformation, append to list	
+			adj.append(np.arctanh(np.corrcoef(ptseries)))
+
+					
+	elif dset='MGH':
+
+	elif dset='NKI':
+
+	else:
+		print('no dataset??')
+		return None
+		
+	return adj	
+
+
+if __name__ == "__main__":
+
+
+	HCP_adj = cal_dataset_adjmat(dest='HCP', roi='CA_CIFTI')
+
+
+
 
 
