@@ -1,4 +1,3 @@
-
 import numpy as np
 import bct 
 import igraph
@@ -171,41 +170,42 @@ def community_matrix(membership):
 	return final_matrix
 
 
+def test_pipline():
+	''' A run thorugh test using a csv input from Aaron'''
+	# load matrix
+	matrix = np.genfromtxt('HCP_MMP1_roi-pair_corr.csv',delimiter=',',dtype=None)
+	matrix[np.isnan(matrix)] = 0.0  
 
-# load matrix
-matrix = np.genfromtxt('HCP_MMP1_roi-pair_corr.csv',delimiter=',',dtype=None)
-matrix[np.isnan(matrix)] = 0.0  
 
+	# step through costs, do infomap, return final infomap across cost
+	max_cost = .15
+	min_cost = .01
 
-# step through costs, do infomap, return final infomap across cost
-max_cost = .15
-min_cost = .01
+	# ave consensus across costs
+	partition = ave_consensus_costs_parition(matrix, min_cost, max_cost)
+	partition = np.array(partition) + 1
 
-# ave consensus across costs
-partition = ave_consensus_costs_parition(matrix, min_cost, max_cost)
-partition = np.array(partition) + 1
+	# import thresholded matrix to BCT, import partition, run WMD/PC
+	PCs = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), matrix.shape[0]))
+	WMDs = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), matrix.shape[0]))
 
-# import thresholded matrix to BCT, import partition, run WMD/PC
-PCs = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), matrix.shape[0]))
-WMDs = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), matrix.shape[0]))
+	for i, cost in enumerate(np.arange(min_cost, max_cost, 0.01)):
+		
+		tmp_matrix = threshold(matrix.copy(), cost)
+		
+		#PC
+		PCs[i,:] = bct.participation_coef(tmp_matrix, partition)
+		#WMD
+		WMDs[i,:] = bct.module_degree_zscore(matrix, partition)
 
-for i, cost in enumerate(np.arange(min_cost, max_cost, 0.01)):
-	
-	tmp_matrix = threshold(matrix.copy(), cost)
-	
-	#PC
-	PCs[i,:] = bct.participation_coef(tmp_matrix, partition)
-	#WMD
-	WMDs[i,:] = bct.module_degree_zscore(matrix, partition)
+	np.save("partition", partition)
+	np.save("PCs", PCs)
+	np.save("WMDs", WMDs)
 
-np.save("partition", partition)
-np.save("PCs", PCs)
-np.save("WMDs", WMDs)
+	#altantively, merge consensus using the power method
+	recursive_partition = power_recursive_partition(matrix, min_cost, max_cost)
+	recursive_partition = recursive_partition + 1
 
-#altantively, merge consensus using the power method
-recursive_partition = power_recursive_partition(matrix, min_cost, max_cost)
-recursive_partition = recursive_partition + 1
-
-np.save('rescursive_partition', recursive_partition)
+	np.save('rescursive_partition', recursive_partition)
 
 
