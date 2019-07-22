@@ -1,11 +1,13 @@
 import numpy as np
 import bct 
 import igraph
+import pandas as pd
 from igraph import Graph, ADJ_UNDIRECTED, VertexClustering
 from itertools import combinations
 import nibabel as nib
 import os
 import matplotlib.pyplot as plt
+from nilearn.input_data import NiftiLabelsMasker
 
 def matrix_to_igraph(matrix,cost,binary=False,check_tri=True,interpolation='midpoint',normalize=False,mst=False,test_matrix=True):
 	"""
@@ -211,7 +213,7 @@ def test_pipline():
 	np.save('rescursive_partition', recursive_partition)
 
 
-def cal_dataset_adjmat(dest='HCP', roi='CA_CIFTI'):
+def cal_dataset_adj(dset='HCP'):
 	'''short hand function to load timeseries from CIFTI(HCP) or NIFTI(others), need to say which dataset and give a ROI parcellation
 	The default is using Cole's network wide parcellation in CIFTI label format for HCP.
 	For MGH/NKI, a NIFTI version of that template is available as CA_2mm
@@ -230,6 +232,7 @@ def cal_dataset_adjmat(dest='HCP', roi='CA_CIFTI'):
 			rest4 = '/data/not_backed_up/shared/HCP/%s/MNINonLinear/Results/rfMRI_REST2_RL/rfMRI_REST2_RL_Atlas_hp2000_clean.dtseries.nii' %s
 
 			rest_runs = [ rest1, rest2, rest3, rest4]
+			roi='CA_CIFTI'
 			parcel_template = '/data/backed_up/shared/ROIs/' + roi + '.nii'
 			tmp_cifti = '/home/kahwang/tmp/tmpfile.ptseries.nii'
 
@@ -247,22 +250,65 @@ def cal_dataset_adjmat(dest='HCP', roi='CA_CIFTI'):
 			adj.append(np.arctanh(np.corrcoef(ptseries)))
 
 					
-	elif dset='MGH':
+	elif dset=='MGH':
 
-	elif dset='NKI':
+		subjects = pd.read_csv('/home/kahwang/bin/example_graph_pipeline/MGH_Subjects', names=['ID'])['ID']
+		roi='CA_2mm'
+		parcel_template = '/data/backed_up/shared/ROIs/' + roi + '.nii'
+		masker = NiftiLabelsMasker(labels_img=parcel_template, standardize=False)
+		
+		adj = []
+		for s in subjects:
+			try:
+				inputfile = '/data/backed_up/shared/MGH/MGH/%s/MNINonLinear/rfMRI_REST.nii.gz' %s
+				ts = masker.fit_transform(inputfile).T
+				adj.append(np.arctanh(np.corrcoef(ts)))
+			except:
+				continue
+
+	elif dset=='NKI':
+
+		subjects = pd.read_csv('/home/kahwang/bin/example_graph_pipeline/NKI_subjects', names=['ID'])['ID']
+		roi='CA_2mm'
+		parcel_template = '/data/backed_up/shared/ROIs/' + roi + '.nii'
+		masker = NiftiLabelsMasker(labels_img=parcel_template, standardize=False)
+		
+		adj = []
+		for s in subjects:
+			try:
+				inputfile = '/data/backed_up/shared/NKI/%s/MNINonLinear/rfMRI_REST_mx_1400.nii.gz' %s
+				ts = masker.fit_transform(inputfile).T
+				adj.append(np.arctanh(np.corrcoef(ts)))
+			except:
+				continue
 
 	else:
 		print('no dataset??')
 		return None
-		
-	return adj	
+	
+	#average across subjects	
+	avadj = np.nanmean(adj, axis=0)
+	avadj[avadj==np.inf] = 1 #set diag
+	
+	return avadj, adj	
 
+
+def gen_groupave_adj():
+	HCP_avadj, _ = cal_dataset_adj(dset='HCP')
+	np.save('HCP_adj', HCP_avadj)
+	NKI_avadj, _ = cal_dataset_adj(dset='NKI')
+	np.save('NKI_adj', NKI_avadj)
+	MGH_avadj, _ = cal_dataset_adj(dset='MGH')
+	np.save('NKI_adj', NKI_avadj)	
 
 if __name__ == "__main__":
 
 
-	HCP_adj = cal_dataset_adjmat(dest='HCP', roi='CA_CIFTI')
+	#### Get group ave adj
+	# gen_groupave_adj()
 
+	####
+	print('caluclate metircs')
 
 
 
