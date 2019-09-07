@@ -321,7 +321,7 @@ def write_graph_to_vol_nifti(graph_metric, fn):
 	'''short hand to write vol based nifti file of the graph metrics
 	assuming Cole 718 parcels, voxels in each parcel will be replaced with the graph metric'''
 
-	roi_df = pd.read_csv('/home/kahwang/bin/ColeAnticevicNetPartition/CortexSubcortex_ColeAnticevic_NetPartition_wSubcorGSR_parcels_LR_LabelKey.txt', sep='\t')
+	roi_df = pd.read_csv('/home/kahwang/bin/example_graph_pipeline/Updated_CA_ROI_List.csv')
 	vol_template = nib.load('/home/kahwang/bsh/ROIs/CA_2mm.nii')
 	v_data = vol_template.get_data()
 	graph_data = np.zeros((np.shape(v_data)))
@@ -343,7 +343,7 @@ if __name__ == "__main__":
 	print('caluclate centraltiy metircs')
 
 	CI = np.loadtxt('/home/kahwang/bin/ColeAnticevicNetPartition/cortex_subcortex_parcel_network_assignments.txt', dtype=int)
-	roi_df = pd.read_csv('/home/kahwang/bin/ColeAnticevicNetPartition/CortexSubcortex_ColeAnticevic_NetPartition_wSubcorGSR_parcels_LR_LabelKey.txt', sep='\t')
+	roi_df = pd.read_csv('/home/kahwang/bin/example_graph_pipeline/Updated_CA_ROI_List.csv')
 
 	
 	MGH_avadj = np.load('MGH_adj.npy')
