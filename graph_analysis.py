@@ -29,7 +29,7 @@ def matrix_to_igraph(matrix,cost,binary=False,check_tri=True,interpolation='midp
 	matrix = np.array(matrix)
 	matrix = threshold(matrix,cost,binary,check_tri,interpolation,normalize,mst)
 	g = Graph.Weighted_Adjacency(matrix.tolist(),mode=ADJ_UNDIRECTED,attr="weight")
-	print 'Matrix converted to graph with density of: ' + str(g.density())
+	print 'Matrix converted to graph with density of:' + str(g.density())
 	if abs(np.diff([cost,g.density()])[0]) > .005:
 		print 'Density not %s! Did you want: ' %(cost)+ str(g.density()) + ' ?' 
 	return g
@@ -256,7 +256,7 @@ def cal_dataset_adj(dset='HCP'):
 
 		subjects = pd.read_csv('/home/kahwang/bin/example_graph_pipeline/MGH_Subjects', names=['ID'])['ID']
 		roi='CA_2mm'
-		parcel_template = '/data/backed_up/shared/ROIs/' + roi + '.nii'
+		parcel_template = '/data/backed_up/shared/ROIs/' + roi + '.nii.gz'
 		masker = NiftiLabelsMasker(labels_img=parcel_template, standardize=False)
 		
 		adj = []
@@ -272,7 +272,7 @@ def cal_dataset_adj(dset='HCP'):
 
 		subjects = pd.read_csv('/home/kahwang/bin/example_graph_pipeline/NKI_subjects', names=['ID'])['ID']
 		roi='CA_2mm'
-		parcel_template = '/data/backed_up/shared/ROIs/' + roi + '.nii'
+		parcel_template = '/data/backed_up/shared/ROIs/' + roi + '.nii.gz'
 		masker = NiftiLabelsMasker(labels_img=parcel_template, standardize=False)
 		
 		adj = []
@@ -290,20 +290,20 @@ def cal_dataset_adj(dset='HCP'):
 	
 	#average across subjects	
 	avadj = np.nanmean(adj, axis=0)
-	avadj[avadj==np.inf] = 1 #set diag
+	avadj[avadj==np.inf] = 1.0 #set diag
 	
 	return avadj, adj	
 
 
 def gen_groupave_adj():
-	HCP_avadj, _ = cal_dataset_adj(dset='HCP')
-	np.save('HCP_adj', HCP_avadj)
+	#HCP_avadj, _ = cal_dataset_adj(dset='HCP')
+	#np.save('HCP_adj', HCP_avadj)
 	NKI_avadj, _ = cal_dataset_adj(dset='NKI')
 	np.save('NKI_adj', NKI_avadj)
 	MGH_avadj, _ = cal_dataset_adj(dset='MGH')
-	np.save('NKI_adj', NKI_avadj)
+	np.save('MGH_adj', MGH_avadj)
 
-	return 	HCP_avadj, NKI_avadj, MGH_avadj
+	return 	NKI_avadj, MGH_avadj
 
 
 def write_graph_to_pscalar(graph_metric, fn):
@@ -322,7 +322,8 @@ def write_graph_to_vol_nifti(graph_metric, fn):
 	assuming Cole 718 parcels, voxels in each parcel will be replaced with the graph metric'''
 
 	roi_df = pd.read_csv('/home/kahwang/bin/example_graph_pipeline/Updated_CA_ROI_List.csv')
-	vol_template = nib.load('/home/kahwang/bsh/ROIs/CA_2mm.nii')
+	roi_df.loc[0:359,'KEYVALUE'] = np.arange(1,361)
+	vol_template = nib.load('/home/kahwang/bsh/ROIs/CA_2mm.nii.gz')
 	v_data = vol_template.get_data()
 	graph_data = np.zeros((np.shape(v_data)))
 	for i in roi_df['INDEX'].values-1: 
@@ -337,9 +338,11 @@ if __name__ == "__main__":
 
 
 	#### Get group ave adj
-	# HCP_avadj, NKI_avadj, MGH_avadj = gen_groupave_adj()
+	#NKI_avadj, MGH_avadj = gen_groupave_adj()
 
-	####Kitchen sink centrality loop, save nii file (cifti parcel)
+	
+
+	###Kitchen sink centrality loop, save nii file (cifti parcel)
 	print('caluclate centraltiy metircs')
 
 	CI = np.loadtxt('/home/kahwang/bin/ColeAnticevicNetPartition/cortex_subcortex_parcel_network_assignments.txt', dtype=int)
@@ -348,12 +351,12 @@ if __name__ == "__main__":
 	
 	MGH_avadj = np.load('MGH_adj.npy')
 	NKI_avadj = np.load('NKI_adj.npy')
-	HCP_avadj =  np.load('HCP_adj.npy')
+	#HCP_avadj =  np.load('HCP_adj.npy')
 
 	max_cost = .15
 	min_cost = .01
 		
-	MATS = [MGH_avadj, NKI_avadj, HCP_avadj]
+	MATS = [MGH_avadj, NKI_avadj]
 	dsets = ['MGH', 'NKI', 'HCP']
 
 
@@ -377,43 +380,43 @@ if __name__ == "__main__":
 				SC[i,:] = bct.subgraph_centrality(tmp_matrix)
 				ST[i,:] = bct.strengths_und(tmp_matrix)
 		
-		fn = 'images/%s_PC.pscalar.nii' %dsets[ix]
-		write_graph_to_pscalar(np.nanmean(PC,axis=0), fn)
+		#fn = 'images/%s_PC.pscalar.nii' %dsets[ix]
+		#write_graph_to_pscalar(np.nanmean(PC,axis=0), fn)
 		fn = 'images/%s_PC.nii' %dsets[ix]
 		write_graph_to_vol_nifti(np.nanmean(PC,axis=0), fn)
 		fn = 'PC_%s' %dsets[ix]
 		roi_df[fn] = np.nanmean(PC,axis=0)
 
-		fn = 'images/%s_WMD.pscalar.nii' %dsets[ix]
-		write_graph_to_pscalar(np.nanmean(WMD,axis=0), fn)
+		#fn = 'images/%s_WMD.pscalar.nii' %dsets[ix]
+		#write_graph_to_pscalar(np.nanmean(WMD,axis=0), fn)
 		fn = 'images/%s_WMD.nii' %dsets[ix]
 		write_graph_to_vol_nifti(np.nanmean(WMD,axis=0), fn)
 		fn = 'WMD_%s' %dsets[ix]
 		roi_df[fn] = np.nanmean(WMD,axis=0)
 
-		fn = 'images/%s_EigenCent.pscalar.nii' %dsets[ix]
-		write_graph_to_pscalar(np.nanmean(EC, axis=0), fn)
+		#fn = 'images/%s_EigenCent.pscalar.nii' %dsets[ix]
+		#write_graph_to_pscalar(np.nanmean(EC, axis=0), fn)
 		fn = 'images/%s_EigenCent.nii' %dsets[ix]
 		write_graph_to_vol_nifti(np.nanmean(EC,axis=0), fn)
 		fn = 'EigenCentrality_%s' %dsets[ix]
 		roi_df[fn] = np.nanmean(EC,axis=0)
 
-		fn = 'images/%s_GatewayCent.pscalar.nii' %dsets[ix]
-		write_graph_to_pscalar(np.nanmean(GC, axis=0), fn)
+		#fn = 'images/%s_GatewayCent.pscalar.nii' %dsets[ix]
+		#write_graph_to_pscalar(np.nanmean(GC, axis=0), fn)
 		fn = 'images/%s_GatewayCent.nii' %dsets[ix]
 		write_graph_to_vol_nifti(np.nanmean(GC,axis=0), fn)
 		fn = 'GatewayCentrality_%s' %dsets[ix]
 		roi_df[fn] = np.nanmean(GC,axis=0)
 
-		fn = 'images/%s_SubgraphCent.pscalar.nii' %dsets[ix]
-		write_graph_to_pscalar(np.nanmean(SC, axis=0), fn)
+		#fn = 'images/%s_SubgraphCent.pscalar.nii' %dsets[ix]
+		#write_graph_to_pscalar(np.nanmean(SC, axis=0), fn)
 		fn = 'images/%s_SubgraphCent.nii' %dsets[ix]
 		write_graph_to_vol_nifti(np.nanmean(SC,axis=0), fn)
 		fn = 'SubgraphCentrality_%s' %dsets[ix]
 		roi_df[fn] = np.nanmean(SC,axis=0)
 
-		fn = 'images/%s_WeightedDegree.pscalar.nii' %dsets[ix]
-		write_graph_to_pscalar(np.nanmean(ST, axis=0), fn)
+		#fn = 'images/%s_WeightedDegree.pscalar.nii' %dsets[ix]
+		#write_graph_to_pscalar(np.nanmean(ST, axis=0), fn)
 		fn = 'images/%s_WeightedDegree.nii' %dsets[ix]
 		write_graph_to_vol_nifti(np.nanmean(ST,axis=0), fn)
 		fn = 'WeightedDegreeCentrality_%s' %dsets[ix]
@@ -421,33 +424,33 @@ if __name__ == "__main__":
 
 
 		#zscore version, eseentialy ranking across parcels/rois
-		fn = 'images/%s_zPC.pscalar.nii' %dsets[ix]
-		write_graph_to_pscalar(zscore(np.nanmean(PC,axis=0)), fn)
+		#fn = 'images/%s_zPC.pscalar.nii' %dsets[ix]
+		#write_graph_to_pscalar(zscore(np.nanmean(PC,axis=0)), fn)
 		fn = 'images/%s_zPC.nii' %dsets[ix]
 		write_graph_to_vol_nifti(zscore(np.nanmean(PC,axis=0)), fn)
 		
-		fn = 'images/%s_zWMD.pscalar.nii' %dsets[ix]
-		write_graph_to_pscalar(zscore(np.nanmean(WMD,axis=0)), fn)
+		#fn = 'images/%s_zWMD.pscalar.nii' %dsets[ix]
+		#write_graph_to_pscalar(zscore(np.nanmean(WMD,axis=0)), fn)
 		fn = 'images/%s_zWMD.nii' %dsets[ix]
 		write_graph_to_vol_nifti(zscore(np.nanmean(WMD,axis=0)), fn)
 
-		fn = 'images/%s_zEigenCent.pscalar.nii' %dsets[ix]
-		write_graph_to_pscalar(zscore(np.nanmean(EC, axis=0)), fn)
+		#fn = 'images/%s_zEigenCent.pscalar.nii' %dsets[ix]
+		#write_graph_to_pscalar(zscore(np.nanmean(EC, axis=0)), fn)
 		fn = 'images/%s_zEigenCent.nii' %dsets[ix]
 		write_graph_to_vol_nifti(zscore(np.nanmean(EC,axis=0)), fn)
 
-		fn = 'images/%s_zGatewayCent.pscalar.nii' %dsets[ix]
-		write_graph_to_pscalar(zscore(np.nanmean(GC, axis=0)), fn)
+		#fn = 'images/%s_zGatewayCent.pscalar.nii' %dsets[ix]
+		#write_graph_to_pscalar(zscore(np.nanmean(GC, axis=0)), fn)
 		fn = 'images/%s_zGatewayCent.nii' %dsets[ix]
 		write_graph_to_vol_nifti(zscore(np.nanmean(GC,axis=0)), fn)
 
-		fn = 'images/%s_zSubgraphCent.pscalar.nii' %dsets[ix]
-		write_graph_to_pscalar(zscore(np.nanmean(SC, axis=0)), fn)
+		#fn = 'images/%s_zSubgraphCent.pscalar.nii' %dsets[ix]
+		#write_graph_to_pscalar(zscore(np.nanmean(SC, axis=0)), fn)
 		fn = 'images/%s_zSubgraphCent.nii' %dsets[ix]
 		write_graph_to_vol_nifti(zscore(np.nanmean(SC,axis=0)), fn)
 
-		fn = 'images/%s_zWeightedDegree.pscalar.nii' %dsets[ix]
-		write_graph_to_pscalar(zscore(np.nanmean(ST, axis=0)), fn)
+		#fn = 'images/%s_zWeightedDegree.pscalar.nii' %dsets[ix]
+		#write_graph_to_pscalar(zscore(np.nanmean(ST, axis=0)), fn)
 		fn = 'images/%s_zWeightedDegree.nii' %dsets[ix]
 		write_graph_to_vol_nifti(zscore(np.nanmean(ST,axis=0)), fn)
 
