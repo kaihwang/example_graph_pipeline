@@ -1,6 +1,5 @@
 import numpy as np
-import bct 
-import igraph
+import bct
 import pandas as pd
 from igraph import Graph, ADJ_UNDIRECTED, VertexClustering
 from itertools import combinations
@@ -29,9 +28,9 @@ def matrix_to_igraph(matrix,cost,binary=False,check_tri=True,interpolation='midp
 	matrix = np.array(matrix)
 	matrix = threshold(matrix,cost,binary,check_tri,interpolation,normalize,mst)
 	g = Graph.Weighted_Adjacency(matrix.tolist(),mode=ADJ_UNDIRECTED,attr="weight")
-	print 'Matrix converted to graph with density of:' + str(g.density())
+	print('Matrix converted to graph with density of:' + str(g.density()))
 	if abs(np.diff([cost,g.density()])[0]) > .005:
-		print 'Density not %s! Did you want: ' %(cost)+ str(g.density()) + ' ?' 
+		print('Density not %s! Did you want: ' %(cost)+ str(g.density()) + ' ?')
 	return g
 
 
@@ -81,16 +80,16 @@ def ave_consensus_costs_parition(matrix, min_cost, max_cost):
 partition'''
 
 	consensus_matricies = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), matrix.shape[0], matrix.shape[1]))
-	
+
 	for i, cost in enumerate(np.arange(min_cost, max_cost+0.01, 0.01)):
-		
+
 		graph = matrix_to_igraph(matrix.copy(),cost=cost)
 		infomap_paritition = graph.community_infomap(edge_weights='weight')
 		consensus_matricies[i,:,:] = community_matrix(infomap_paritition.membership)
 
 	ave_consensus = np.mean(consensus_matricies, axis=0)
 	graph = matrix_to_igraph(ave_consensus,cost=1.)
-	final_infomap_partition = graph.community_infomap(edge_weights='weight')	
+	final_infomap_partition = graph.community_infomap(edge_weights='weight')
 
 	return final_infomap_partition.membership
 
@@ -110,11 +109,11 @@ def power_recursive_partition(matrix, min_cost, max_cost, min_community_size=5):
 		graph = matrix_to_igraph(matrix.copy(),cost=cost)
 		partition = graph.community_infomap(edge_weights='weight')
 		connected_nodes = []
-		
+
 		for node in range(partition.graph.vcount()):
 			if partition.sizes()[partition.membership[node]] > min_community_size:
 				connected_nodes.append(node)
-		
+
 		within_community_edges = []
 		between_community_edges = []
 		for edge in combinations(connected_nodes,2):
@@ -139,23 +138,23 @@ def power_recursive_partition(matrix, min_cost, max_cost, min_community_size=5):
 
 	graph = matrix_to_igraph(final_identity_matrix,cost=1.)
 	final_infomap_partition = np.array(graph.community_infomap(edge_weights='weight').membership)
-	return final_infomap_partition 
+	return final_infomap_partition
 
 
 
 def community_matrix(membership):
-	'''To generate a identiy matrix where nodes that belong to the same community/patition has 
+	'''To generate a identiy matrix where nodes that belong to the same community/patition has
 	edges set as "1" between them, otherwise 0 '''
 
 	membership = np.array(membership).reshape(-1)
-	
+
 	final_matrix = np.zeros((len(membership),len(membership)))
 	final_matrix[:] = np.nan
 	connected_nodes = []
 	for i in np.unique(membership):
 		for n in np.array(np.where(membership==i))[0]:
 			connected_nodes.append(int(n))
-	
+
 	within_community_edges = []
 	between_community_edges = []
 	connected_nodes = np.array(connected_nodes)
@@ -164,7 +163,7 @@ def community_matrix(membership):
 			within_community_edges.append(edge)
 		else:
 			between_community_edges.append(edge)
-	
+
 	# set edge as 1 if same community
 	for edge in within_community_edges:
 		final_matrix[edge[0],edge[1]] = 1
@@ -180,7 +179,7 @@ def test_pipline():
 	''' A run thorugh test using a csv input from Aaron'''
 	# load matrix
 	matrix = np.genfromtxt('HCP_MMP1_roi-pair_corr.csv',delimiter=',',dtype=None)
-	matrix[np.isnan(matrix)] = 0.0  
+	matrix[np.isnan(matrix)] = 0.0
 
 
 	# step through costs, do infomap, return final infomap across cost
@@ -196,9 +195,9 @@ def test_pipline():
 	WMDs = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), matrix.shape[0]))
 
 	for i, cost in enumerate(np.arange(min_cost, max_cost, 0.01)):
-		
+
 		tmp_matrix = threshold(matrix.copy(), cost)
-		
+
 		#PC
 		PCs[i,:] = bct.participation_coef(tmp_matrix, partition)
 		#WMD
@@ -248,17 +247,17 @@ def cal_dataset_adj(dset='HCP', roifile = 'CA_2mm'):
 				else:
 					ptseries = np.concatenate([ptseries, np.squeeze(nib.load(tmp_cifti).get_data()).T], axis=1)
 
-			#calculate corrcoef, then take fisher z transformation, append to list	
+			#calculate corrcoef, then take fisher z transformation, append to list
 			adj.append(np.arctanh(np.corrcoef(ptseries)))
 
-					
+
 	elif dset=='MGH':
 
 		subjects = pd.read_csv('/home/kahwang/bin/example_graph_pipeline/MGH_Subjects', names=['ID'])['ID']
 		roi=roifile
 		parcel_template = '/data/backed_up/shared/ROIs/' + roi + '.nii.gz'
 		masker = NiftiLabelsMasker(labels_img=parcel_template, standardize=False)
-		
+
 		adj = []
 		for s in subjects:
 			try:
@@ -274,7 +273,7 @@ def cal_dataset_adj(dset='HCP', roifile = 'CA_2mm'):
 		roi=roifile
 		parcel_template = '/data/backed_up/shared/ROIs/' + roi + '.nii.gz'
 		masker = NiftiLabelsMasker(labels_img=parcel_template, standardize=False)
-		
+
 		adj = []
 		for s in subjects:
 			try:
@@ -287,12 +286,12 @@ def cal_dataset_adj(dset='HCP', roifile = 'CA_2mm'):
 	else:
 		print('no dataset??')
 		return None
-	
-	#average across subjects	
+
+	#average across subjects
 	avadj = np.nanmean(adj, axis=0)
 	avadj[avadj==np.inf] = 1.0 #set diag
-	
-	return avadj, adj	
+
+	return avadj, adj
 
 
 def gen_groupave_adj(roifile):
@@ -311,7 +310,7 @@ def gen_groupave_adj(roifile):
 def write_graph_to_pscalar(graph_metric, fn):
 	'''write parcel-wise graph metric to a parcel cifiti data for visuliziation
 	assuming using the Cole 718 parcel'''
-	
+
 	tempcifti = nib.load('/home/kahwang/bin/ColeAnticevicNetPartition/tempate.pscalar.nii')
 	tempscalar = tempcifti.get_data()
 	tempscalar[0,:] = graph_metric
@@ -328,13 +327,13 @@ def write_graph_to_vol_yeo_template_nifti(graph_metric, fn):
 	vol_template = nib.load('/home/kahwang/bsh/ROIs/Yeo425x17LiberalCombinedMNI.nii.gz')
 	v_data = vol_template.get_data()
 	graph_data = np.zeros((np.shape(v_data)))
-	
-	for i in np.arange(425): 
+
+	for i in np.arange(425):
 		#key = roi_df['KEYVALUE'][i]
 		graph_data[v_data == i+1] = graph_metric[i]
 
-	new_nii = nib.Nifti1Image(graph_data, affine = vol_template.get_affine(), header = vol_template.get_header())	
-	nib.save(new_nii, fn)	
+	new_nii = nib.Nifti1Image(graph_data, affine = vol_template.get_affine(), header = vol_template.get_header())
+	nib.save(new_nii, fn)
 
 
 if __name__ == "__main__":
@@ -343,7 +342,7 @@ if __name__ == "__main__":
 	### Get group ave adj
 	#NKI_avadj, MGH_avadj = gen_groupave_adj(roifile = 'Yeo425x17LiberalCombinedMNI')
 
-	
+
 
 	###Kitchen sink centrality loop, save nii file (cifti parcel) CA template
 	# print('caluclate centraltiy metircs')
@@ -351,14 +350,14 @@ if __name__ == "__main__":
 	# CI = np.loadtxt('/home/kahwang/bin/ColeAnticevicNetPartition/cortex_subcortex_parcel_network_assignments.txt', dtype=int)
 	# roi_df = pd.read_csv('/home/kahwang/bin/example_graph_pipeline/Updated_CA_ROI_List.csv')
 
-	
+
 	# MGH_avadj = np.load('MGH_adj.npy')
 	# NKI_avadj = np.load('NKI_adj.npy')
 	# #HCP_avadj =  np.load('HCP_adj.npy')
 
 	# max_cost = .15
 	# min_cost = .01
-		
+
 	# MATS = [MGH_avadj, NKI_avadj]
 	# dsets = ['MGH', 'NKI', 'HCP']
 
@@ -375,14 +374,14 @@ if __name__ == "__main__":
 	# 	for i, cost in enumerate(np.arange(min_cost, max_cost, 0.01)):
 
 	# 			tmp_matrix = threshold(matrix.copy(), cost)
-		
+
 	# 			PC[i,:] = bct.participation_coef(tmp_matrix, CI)
 	# 			WMD[i,:] = bct.module_degree_zscore(tmp_matrix,CI)
 	# 			EC[i,:] = bct.eigenvector_centrality_und(tmp_matrix)
 	# 			GC[i,:], _ = bct.gateway_coef_sign(tmp_matrix, CI)
 	# 			SC[i,:] = bct.subgraph_centrality(tmp_matrix)
 	# 			ST[i,:] = bct.strengths_und(tmp_matrix)
-		
+
 	# 	#fn = 'images/%s_PC.pscalar.nii' %dsets[ix]
 	# 	#write_graph_to_pscalar(np.nanmean(PC,axis=0), fn)
 	# 	fn = 'images/%s_PC.nii' %dsets[ix]
@@ -431,7 +430,7 @@ if __name__ == "__main__":
 	# 	#write_graph_to_pscalar(zscore(np.nanmean(PC,axis=0)), fn)
 	# 	fn = 'images/%s_zPC.nii' %dsets[ix]
 	# 	write_graph_to_vol_nifti(zscore(np.nanmean(PC,axis=0)), fn)
-		
+
 	# 	#fn = 'images/%s_zWMD.pscalar.nii' %dsets[ix]
 	# 	#write_graph_to_pscalar(zscore(np.nanmean(WMD,axis=0)), fn)
 	# 	fn = 'images/%s_zWMD.nii' %dsets[ix]
@@ -461,21 +460,22 @@ if __name__ == "__main__":
 
 
 
-
+########################################################################
 #Kitchen sink centrality loop, save nii file (cifti parcel) Yeo template
+########################################################################
 	print('caluclate centraltiy metircs')
 
 	CI = np.loadtxt('/home/kahwang/bin/example_graph_pipeline/Yeo425x17LiberalCombinedCommunityAffiliation.1D', dtype=int)
 	#roi_df = pd.read_csv('/home/kahwang/bin/example_graph_pipeline/Updated_CA_ROI_List.csv')
 
-	
+
 	MGH_avadj = np.load('NKI_adj_Yeo425x17LiberalCombinedMNI.npy')
 	NKI_avadj = np.load('NKI_adj_Yeo425x17LiberalCombinedMNI.npy')
 	#HCP_avadj =  np.load('HCP_adj.npy')
 
 	max_cost = .15
 	min_cost = .01
-		
+
 	MATS = [MGH_avadj, NKI_avadj]
 	dsets = ['MGH', 'NKI']
 
@@ -492,14 +492,14 @@ if __name__ == "__main__":
 		for i, cost in enumerate(np.arange(min_cost, max_cost, 0.01)):
 
 				tmp_matrix = threshold(matrix.copy(), cost)
-		
+
 				PC[i,:] = bct.participation_coef(tmp_matrix, CI)
 				WMD[i,:] = bct.module_degree_zscore(tmp_matrix,CI)
 				EC[i,:] = bct.eigenvector_centrality_und(tmp_matrix)
 				GC[i,:], _ = bct.gateway_coef_sign(tmp_matrix, CI)
 				SC[i,:] = bct.subgraph_centrality(tmp_matrix)
 				ST[i,:] = bct.strengths_und(tmp_matrix)
-		
+
 		#fn = 'images/%s_PC.pscalar.nii' %dsets[ix]
 		#write_graph_to_pscalar(np.nanmean(PC,axis=0), fn)
 		fn = 'images/yeotemplate_%s_PC.nii' %dsets[ix]
@@ -548,7 +548,7 @@ if __name__ == "__main__":
 		#write_graph_to_pscalar(zscore(np.nanmean(PC,axis=0)), fn)
 		fn = 'images/yeotemplate_%s_zPC.nii' %dsets[ix]
 		write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(PC,axis=0)), fn)
-		
+
 		#fn = 'images/%s_zWMD.pscalar.nii' %dsets[ix]
 		#write_graph_to_pscalar(zscore(np.nanmean(WMD,axis=0)), fn)
 		fn = 'images/yeotemplate_%s_zWMD.nii' %dsets[ix]
@@ -573,7 +573,3 @@ if __name__ == "__main__":
 		#write_graph_to_pscalar(zscore(np.nanmean(ST, axis=0)), fn)
 		fn = 'images/yeotemplate_%s_zWeightedDegree.nii' %dsets[ix]
 		write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(ST,axis=0)), fn)
-
-
-
-
