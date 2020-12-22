@@ -9,6 +9,8 @@ import os
 import matplotlib.pyplot as plt
 from nilearn.input_data import NiftiLabelsMasker
 from scipy.stats import zscore
+from nilearn import masking
+import nilearn
 
 def matrix_to_igraph(matrix,cost,binary=False,check_tri=True,interpolation='midpoint',normalize=False,mst=False,test_matrix=True):
 	"""
@@ -257,13 +259,18 @@ def cal_dataset_adj(dset='HCP', roifile = 'CA_2mm'):
 		roi=roifile
 		parcel_template = '/data/backed_up/shared/ROIs/' + roi + '.nii.gz'
 		masker = NiftiLabelsMasker(labels_img=parcel_template, standardize=False)
+		parcel_mask = nilearn.image.new_img_like(parcel_template, 1*(nib.load(parcel_template).get_data()>0), copy_header = True)
+		size = masking.apply_mask(parcel_template, parcel_mask).shape[0]
 
-		adj = []
+		adj = np.zeros((size, size))
+		ns  = 1.0
 		for s in subjects:
 			try:
 				inputfile = '/data/backed_up/shared/MGH/MGH/%s/MNINonLinear/rfMRI_REST.nii.gz' %s
 				ts = masker.fit_transform(inputfile).T
-				adj.append(np.arctanh(np.corrcoef(ts)))
+				cormat = np.nan_to_num(np.corrcoef(ts))
+				adj = adj + np.arctanh(cormat)
+				ns = ns + 1
 			except:
 				continue
 
@@ -273,13 +280,19 @@ def cal_dataset_adj(dset='HCP', roifile = 'CA_2mm'):
 		roi=roifile
 		parcel_template = '/data/backed_up/shared/ROIs/' + roi + '.nii.gz'
 		masker = NiftiLabelsMasker(labels_img=parcel_template, standardize=False)
+		parcel_mask = nilearn.image.new_img_like(parcel_template, 1*(nib.load(parcel_template).get_data()>0), copy_header = True)
+		size = masking.apply_mask(parcel_template, parcel_mask).shape[0]
 
-		adj = []
+		adj = np.zeros((size, size))
+		ns  = 1.0
 		for s in subjects:
 			try:
 				inputfile = '/data/backed_up/shared/NKI/%s/MNINonLinear/rfMRI_REST_mx_1400.nii.gz' %s
 				ts = masker.fit_transform(inputfile).T
-				adj.append(np.arctanh(np.corrcoef(ts)))
+				#adj.append(np.arctanh(np.corrcoef(ts)))
+				cormat = np.nan_to_num(np.corrcoef(ts))
+				adj = adj + np.arctanh(cormat)
+				ns = ns + 1
 			except:
 				continue
 
@@ -288,7 +301,8 @@ def cal_dataset_adj(dset='HCP', roifile = 'CA_2mm'):
 		return None
 
 	#average across subjects
-	avadj = np.nanmean(adj, axis=0)
+	#avadj = np.nanmean(adj, axis=0)
+	avadj = adj / ns
 	avadj[avadj==np.inf] = 1.0 #set diag
 
 	return avadj, adj
@@ -326,8 +340,10 @@ def write_graph_to_vol_yeo_template_nifti(graph_metric, fn, resolution=400):
 	#roi_df.loc[0:359,'KEYVALUE'] = np.arange(1,361)
 	if resolution == 400:
 		vol_template = nib.load('/home/kahwang/bsh/ROIs/Yeo425x17LiberalCombinedMNI.nii.gz')
-	elif resluition == 900:
+		roisize = 425
+	elif resolution == 900:
 		vol_template = nib.load('/home/kahwang/bsh/ROIs/Schaefer900.nii.gz')
+		roisize = 900
 	else:
 		print ('Error with template')
 		return
@@ -335,7 +351,8 @@ def write_graph_to_vol_yeo_template_nifti(graph_metric, fn, resolution=400):
 	v_data = vol_template.get_data()
 	graph_data = np.zeros((np.shape(v_data)))
 
-	for i in np.arange(425):
+
+	for i in np.arange(roisize):
 		#key = roi_df['KEYVALUE'][i]
 		graph_data[v_data == i+1] = graph_metric[i]
 
@@ -585,7 +602,99 @@ if __name__ == "__main__":
 ########################################################################
 #Kitchen sink centrality loop, use Schaefer900
 ########################################################################
-	NKI_avadj, MGH_avadj = gen_groupave_adj('Schaefer900')
+
+	#NKI_avadj, MGH_avadj = gen_groupave_adj('Schaefer900')
+
+	# extract community assignment from the lut file
+	# df = pd.read_csv('/home/kahwang/bsh/ROIs/Yeo1000_CI.txt', sep='\t', header=None)
+	# df.loc[df[1].str.contains('Vis'), 'CI'] = 1
+	# df.loc[df[1].str.contains('SomMot'), 'CI'] = 2
+	# df.loc[df[1].str.contains('DorsAttn'), 'CI'] = 3
+	# df.loc[df[1].str.contains('SalVentAttn'), 'CI'] = 4
+	# df.loc[df[1].str.contains('Limbic'), 'CI'] = 5
+	# df.loc[df[1].str.contains('Cont'), 'CI'] = 6
+	# df.loc[df[1].str.contains('Default'), 'CI'] = 7
+	# CI = df['CI'].values
+	#
+	# MGH_avadj = np.load('NKI_adj_Schaefer900.npy')
+	# NKI_avadj = np.load('NKI_adj_Schaefer900.npy')
+	#
+	# max_cost = .15
+	# min_cost = .01
+	#
+	# MATS = [MGH_avadj, NKI_avadj]
+	# dsets = ['MGH', 'NKI']
+	#
+	# # import thresholded matrix to BCT, import partition, run WMD/PC
+	# PC = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 900))
+	# WMD = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 900))
+	# EC = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 900))
+	# GC = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 900))
+	# SC = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 900))
+	# ST = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 900))
+	#
+	# for ix, matrix in enumerate(MATS):
+	# 	for i, cost in enumerate(np.arange(min_cost, max_cost, 0.01)):
+	#
+	# 			tmp_matrix = threshold(matrix.copy(), cost)
+	#
+	# 			PC[i,:] = bct.participation_coef(tmp_matrix, CI)
+	# 			WMD[i,:] = bct.module_degree_zscore(tmp_matrix,CI)
+	# 			EC[i,:] = bct.eigenvector_centrality_und(tmp_matrix)
+	# 			GC[i,:], _ = bct.gateway_coef_sign(tmp_matrix, CI)
+	# 			SC[i,:] = bct.subgraph_centrality(tmp_matrix)
+	# 			ST[i,:] = bct.strengths_und(tmp_matrix)
+	#
+	# 	fn = 'images/Schaeffer900_%s_PC.nii' %dsets[ix]
+	# 	write_graph_to_vol_yeo_template_nifti(np.nanmean(PC,axis=0), fn, 900)
+	#
+	# 	fn = 'images/Schaeffer900_%s_WMD.nii' %dsets[ix]
+	# 	write_graph_to_vol_yeo_template_nifti(np.nanmean(WMD,axis=0), fn, 900)
+	#
+	# 	fn = 'images/Schaeffer900_%s_EigenCent.nii' %dsets[ix]
+	# 	write_graph_to_vol_yeo_template_nifti(np.nanmean(EC,axis=0), fn, 900)
+	#
+	# 	fn = 'images/Schaeffer900_%s_GatewayCent.nii' %dsets[ix]
+	# 	write_graph_to_vol_yeo_template_nifti(np.nanmean(GC,axis=0), fn, 900)
+	#
+	# 	fn = 'images/Schaeffer900_%s_SubgraphCent.nii' %dsets[ix]
+	# 	write_graph_to_vol_yeo_template_nifti(np.nanmean(SC,axis=0), fn)
+	#
+	# 	fn = 'images/Schaeffer900_%s_WeightedDegree.nii' %dsets[ix]
+	# 	write_graph_to_vol_yeo_template_nifti(np.nanmean(ST,axis=0), fn, 900)
+	#
+	# 	#zscore version, eseentialy ranking across parcels/rois
+	# 	fn = 'images/Schaeffer900_%s_zPC.nii' %dsets[ix]
+	# 	write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(PC,axis=0)), fn, 900)
+	#
+	# 	fn = 'images/Schaeffer900_%s_zWMD.nii' %dsets[ix]
+	# 	write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(WMD,axis=0)), fn, 900)
+	#
+	# 	fn = 'images/Schaeffer900_%s_zEigenCent.nii' %dsets[ix]
+	# 	write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(EC,axis=0)), fn, 900)
+	#
+	# 	fn = 'images/Schaeffer900_%s_zGatewayCent.nii' %dsets[ix]
+	# 	write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(GC,axis=0)), fn, 900)
+	#
+	# 	fn = 'images/Schaeffer900_%s_zSubgraphCent.nii' %dsets[ix]
+	# 	write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(SC,axis=0)), fn, 900)
+	#
+	# 	fn = 'images/Schaeffer900_%s_zWeightedDegree.nii' %dsets[ix]
+	# 	write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(ST,axis=0)), fn, 900)
+	#
+
+########################################################################
+#voxel wise graph
+########################################################################
+	roi='CA_4mm'
+	NKI_avadj, MGH_avadj = gen_groupave_adj(roi)
+
+	parcel_template = '/data/backed_up/shared/ROIs/' + roi + '.nii.gz'
+	parcel_template = nib.load(parcel_template)
+
+	parcel_mask = nilearn.image.new_img_like(parcel_template, 1*(parcel_template.get_data()>0), copy_header = True)
+	CI = masking.apply_mask(nib.load('/data/backed_up/shared/ROIs/CA_4mm_network.nii.gz'), parcel_mask)
+
 
 
 
