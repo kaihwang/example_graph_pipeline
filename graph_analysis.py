@@ -264,12 +264,13 @@ def cal_dataset_adj(dset='HCP', roifile = 'CA_2mm'):
 
 		adj = np.zeros((size, size))
 		ns  = 1.0
-		for s in subjects:
+		for s in subjects[0]:
 			try:
 				inputfile = '/data/backed_up/shared/MGH/MGH/%s/MNINonLinear/rfMRI_REST.nii.gz' %s
-				ts = masker.fit_transform(inputfile).T
-				cormat = np.nan_to_num(np.corrcoef(ts))
-				adj = adj + np.arctanh(cormat)
+				res_file = nilearn.image.resample_to_img(inputfile, parcel_mask)
+				ts = masking.apply_mask(res_file, parcel_mask).T
+				#ts = masker.fit_transform(inputfile).T
+				adj = adj + np.arctanh(np.nan_to_num(np.corrcoef(ts)))
 				ns = ns + 1
 			except:
 				continue
@@ -288,10 +289,12 @@ def cal_dataset_adj(dset='HCP', roifile = 'CA_2mm'):
 		for s in subjects:
 			try:
 				inputfile = '/data/backed_up/shared/NKI/%s/MNINonLinear/rfMRI_REST_mx_1400.nii.gz' %s
-				ts = masker.fit_transform(inputfile).T
+				res_file = nilearn.image.resample_to_img(inputfile, parcel_mask)
+				ts = masking.apply_mask(res_file, parcel_mask).T
+				#ts = masker.fit_transform(inputfile).T
 				#adj.append(np.arctanh(np.corrcoef(ts)))
-				cormat = np.nan_to_num(np.corrcoef(ts))
-				adj = adj + np.arctanh(cormat)
+				#cormat = np.nan_to_num(np.corrcoef(ts))
+				adj = adj + np.arctanh(np.nan_to_num(np.corrcoef(ts)))
 				ns = ns + 1
 			except:
 				continue
@@ -344,6 +347,11 @@ def write_graph_to_vol_yeo_template_nifti(graph_metric, fn, resolution=400):
 	elif resolution == 900:
 		vol_template = nib.load('/home/kahwang/bsh/ROIs/Schaefer900.nii.gz')
 		roisize = 900
+	elif resolution == 'voxelwise':
+		vol_template = nib.load('/home/kahwang/bsh/ROIs/CA_4mm.nii.gz')
+		#roisize = 18166
+		parcel_mask = nilearn.image.new_img_like(vol_template, 1*(vol_template.get_data()>0), copy_header = True)
+		vox_index = masking.apply_mask(nib.load('/data/backed_up/shared/ROIs/CA_4mm.nii.gz'), parcel_mask)
 	else:
 		print ('Error with template')
 		return
@@ -351,12 +359,15 @@ def write_graph_to_vol_yeo_template_nifti(graph_metric, fn, resolution=400):
 	v_data = vol_template.get_data()
 	graph_data = np.zeros((np.shape(v_data)))
 
+	if resolution == 'voxelwise':
+		for ix, i in enumerate(vox_index):
+			graph_data[v_data == i] = graph_metric[ix]
+	else:
+		for i in np.arange(roisize):
+			#key = roi_df['KEYVALUE'][i]
+			graph_data[v_data == i+1] = graph_metric[i]
 
-	for i in np.arange(roisize):
-		#key = roi_df['KEYVALUE'][i]
-		graph_data[v_data == i+1] = graph_metric[i]
-
-	new_nii = nib.Nifti1Image(graph_data, affine = vol_template.get_affine(), header = vol_template.get_header())
+	new_nii = nib.Nifti1Image(graph_data, affine = vol_template.affine, header = vol_template.header)
 	nib.save(new_nii, fn)
 
 
@@ -616,7 +627,7 @@ if __name__ == "__main__":
 	# df.loc[df[1].str.contains('Default'), 'CI'] = 7
 	# CI = df['CI'].values
 	#
-	# MGH_avadj = np.load('NKI_adj_Schaefer900.npy')
+	# MGH_avadj = np.load('MGH_adj_Schaefer900.npy')
 	# NKI_avadj = np.load('NKI_adj_Schaefer900.npy')
 	#
 	# max_cost = .15
@@ -687,7 +698,7 @@ if __name__ == "__main__":
 #voxel wise graph
 ########################################################################
 	roi='CA_4mm'
-	NKI_avadj, MGH_avadj = gen_groupave_adj(roi)
+	#NKI_avadj, MGH_avadj = gen_groupave_adj(roi)
 
 	parcel_template = '/data/backed_up/shared/ROIs/' + roi + '.nii.gz'
 	parcel_template = nib.load(parcel_template)
@@ -695,9 +706,78 @@ if __name__ == "__main__":
 	parcel_mask = nilearn.image.new_img_like(parcel_template, 1*(parcel_template.get_data()>0), copy_header = True)
 	CI = masking.apply_mask(nib.load('/data/backed_up/shared/ROIs/CA_4mm_network.nii.gz'), parcel_mask)
 
+	MGH_avadj = np.load('NKI_adj_CA_4mm.npy')
+	NKI_avadj = np.load('NKI_adj_CA_4mm.npy')
 
+	max_cost = .15
+	min_cost = .01
 
+	MATS = [MGH_avadj, NKI_avadj]
+	dsets = ['MGH', 'NKI']
 
+	# import thresholded matrix to BCT, import partition, run WMD/PC
+	#PC = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
+	#WMD = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
+	#C = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
+	#GC = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
+	SC = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
+	#ST = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
+
+	for ix, matrix in enumerate(MATS):
+		for i, cost in enumerate(np.arange(min_cost, max_cost, 0.01)):
+
+				tmp_matrix = threshold(matrix.copy(), cost)
+
+				#PC[i,:] = bct.participation_coef(tmp_matrix, CI)
+				#WMD[i,:] = bct.module_degree_zscore(tmp_matrix,CI)
+				#EC[i,:] = bct.eigenvector_centrality_und(tmp_matrix)
+				#GC[i,:], _ = bct.gateway_coef_sign(tmp_matrix, CI)
+				SC[i,:] = bct.subgraph_centrality(tmp_matrix)
+				#ST[i,:] = bct.strengths_und(tmp_matrix)
+
+				mes = 'finished running cost:%s' %cost
+				print(mes)
+
+		# fn = 'images/Voxelwise_4mm_%s_WMD.nii' %dsets[ix]
+		# write_graph_to_vol_yeo_template_nifti(np.nanmean(WMD,axis=0), fn, 'voxelwise')
+		#
+		# fn = 'images/Voxelwise_4mm_%s_WeightedDegree.nii' %dsets[ix]
+		# write_graph_to_vol_yeo_template_nifti(np.nanmean(ST,axis=0), fn, 'voxelwise')
+		#
+		# #zscore version, eseentialy ranking across parcels/roi
+		# fn = 'images/Voxelwise_4mm_%s_zWMD.nii' %dsets[ix]
+		# write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(WMD,axis=0)), fn, 'voxelwise')
+		#
+		# fn = 'images/Voxelwise_4mm_%s_zWeightedDegree.nii' %dsets[ix]
+		# write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(ST,axis=0)), fn, 'voxelwise')
+
+		#fn = 'images/Voxelwise_4mm_%s_PC.nii' %dsets[ix]
+		#write_graph_to_vol_yeo_template_nifti(np.nanmean(PC,axis=0), fn, 'voxelwise')
+
+		#zscore version, eseentialy ranking across parcels/roi
+		#fn = 'images/Voxelwise_4mm_%s_zPC.nii' %dsets[ix]
+		#write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(PC,axis=0)), fn, 'voxelwise')
+
+		# fn = 'images/Voxelwise_4mm_%s_EigenC.nii' %dsets[ix]
+		# write_graph_to_vol_yeo_template_nifti(np.nanmean(EC,axis=0), fn, 'voxelwise')
+		#
+		# #zscore version, eseentialy ranking across parcels/roi
+		# fn = 'images/Voxelwise_4mm_%s_zs_EigenC.nii' %dsets[ix]
+		# write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(EC,axis=0)), fn, 'voxelwise')
+
+		# fn = 'images/Voxelwise_4mm_%s_GatewayCentC.nii' %dsets[ix]
+		# write_graph_to_vol_yeo_template_nifti(np.nanmean(GC,axis=0), fn, 'voxelwise')
+		#
+		# #zscore version, eseentialy ranking across parcels/roi
+		# fn = 'images/Voxelwise_4mm_%s_zs_GatewayCentC.nii' %dsets[ix]
+		# write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(GC,axis=0)), fn, 'voxelwise')
+
+		fn = 'images/Voxelwise_4mm_%s_SubgraphCent.nii' %dsets[ix]
+		write_graph_to_vol_yeo_template_nifti(np.nanmean(SC,axis=0), fn, 'voxelwise')
+
+		#zscore version, eseentialy ranking across parcels/roi
+		fn = 'images/Voxelwise_4mm_%s_zs_SubgraphCent.nii' %dsets[ix]
+		write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(SC,axis=0)), fn, 'voxelwise')
 
 
 # End of line
