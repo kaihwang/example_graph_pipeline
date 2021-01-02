@@ -706,22 +706,25 @@ if __name__ == "__main__":
 	parcel_mask = nilearn.image.new_img_like(parcel_template, 1*(parcel_template.get_data()>0), copy_header = True)
 	CI = masking.apply_mask(nib.load('/data/backed_up/shared/ROIs/CA_4mm_network.nii.gz'), parcel_mask)
 
-	MGH_avadj = np.load('NKI_adj_CA_4mm.npy')
+	MGH_avadj = np.load('MGH_adj_CA_4mm.npy')
 	NKI_avadj = np.load('NKI_adj_CA_4mm.npy')
 
 	max_cost = .15
 	min_cost = .01
 
-	MATS = [MGH_avadj, NKI_avadj]
-	dsets = ['MGH', 'NKI']
+	#MATS = [MGH_avadj, NKI_avadj]
+	#dsets = ['MGH', 'NKI']
+
+	MATS = [MGH_avadj]
+	dsets = ['MGH']
 
 	# import thresholded matrix to BCT, import partition, run WMD/PC
-	#PC = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
-	#WMD = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
-	#C = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
-	#GC = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
+	PC = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
+	WMD = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
+	EC = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
+	GC = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
 	SC = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
-	#ST = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
+	ST = np.zeros((len(np.arange(min_cost, max_cost+0.01, 0.01)), 18166))
 
 	for ix, matrix in enumerate(MATS):
 		for i, cost in enumerate(np.arange(min_cost, max_cost, 0.01)):
@@ -731,8 +734,8 @@ if __name__ == "__main__":
 				#PC[i,:] = bct.participation_coef(tmp_matrix, CI)
 				#WMD[i,:] = bct.module_degree_zscore(tmp_matrix,CI)
 				#EC[i,:] = bct.eigenvector_centrality_und(tmp_matrix)
-				#GC[i,:], _ = bct.gateway_coef_sign(tmp_matrix, CI)
-				SC[i,:] = bct.subgraph_centrality(tmp_matrix)
+				GC[i,:], _ = bct.gateway_coef_sign(tmp_matrix, CI)
+				#SC[i,:] = bct.subgraph_centrality(tmp_matrix)
 				#ST[i,:] = bct.strengths_und(tmp_matrix)
 
 				mes = 'finished running cost:%s' %cost
@@ -765,19 +768,19 @@ if __name__ == "__main__":
 		# fn = 'images/Voxelwise_4mm_%s_zs_EigenC.nii' %dsets[ix]
 		# write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(EC,axis=0)), fn, 'voxelwise')
 
-		# fn = 'images/Voxelwise_4mm_%s_GatewayCentC.nii' %dsets[ix]
-		# write_graph_to_vol_yeo_template_nifti(np.nanmean(GC,axis=0), fn, 'voxelwise')
-		#
-		# #zscore version, eseentialy ranking across parcels/roi
-		# fn = 'images/Voxelwise_4mm_%s_zs_GatewayCentC.nii' %dsets[ix]
-		# write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(GC,axis=0)), fn, 'voxelwise')
-
-		fn = 'images/Voxelwise_4mm_%s_SubgraphCent.nii' %dsets[ix]
-		write_graph_to_vol_yeo_template_nifti(np.nanmean(SC,axis=0), fn, 'voxelwise')
+		fn = 'images/Voxelwise_4mm_%s_GatewayCentC.nii' %dsets[ix]
+		write_graph_to_vol_yeo_template_nifti(np.nanmean(GC,axis=0), fn, 'voxelwise')
 
 		#zscore version, eseentialy ranking across parcels/roi
-		fn = 'images/Voxelwise_4mm_%s_zs_SubgraphCent.nii' %dsets[ix]
-		write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(SC,axis=0)), fn, 'voxelwise')
+		fn = 'images/Voxelwise_4mm_%s_zs_GatewayCentC.nii' %dsets[ix]
+		write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(GC,axis=0)), fn, 'voxelwise')
+
+		#fn = 'images/Voxelwise_4mm_%s_SubgraphCent.nii' %dsets[ix]
+		#write_graph_to_vol_yeo_template_nifti(np.nanmean(SC,axis=0), fn, 'voxelwise')
+
+		#zscore version, eseentialy ranking across parcels/roi
+		#fn = 'images/Voxelwise_4mm_%s_zs_SubgraphCent.nii' %dsets[ix]
+		#write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(SC,axis=0)), fn, 'voxelwise')
 
 
 # End of line
