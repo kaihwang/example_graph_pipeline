@@ -698,10 +698,10 @@ if __name__ == "__main__":
 #voxel wise graph
 ########################################################################
 	roi='CA_4mm'
-	MGH_avadj, _ = cal_dataset_adj(dset='MGH', roifile = roi)
+	#MGH_avadj, _ = cal_dataset_adj(dset='MGH', roifile = roi)
 	#NKI_avadj, MGH_avadj = gen_groupave_adj(roi)
-	fn = 'MGH_adj_%s' %roi
-	np.save(fn, MGH_avadj)
+	#fn = 'MGH_adj_%s' %roi
+	#np.save(fn, MGH_avadj)
 
 	parcel_template = '/data/backed_up/shared/ROIs/' + roi + '.nii.gz'
 	parcel_template = nib.load(parcel_template)
@@ -709,7 +709,7 @@ if __name__ == "__main__":
 	parcel_mask = nilearn.image.new_img_like(parcel_template, 1*(parcel_template.get_data()>0), copy_header = True)
 	CI = masking.apply_mask(nib.load('/data/backed_up/shared/ROIs/CA_4mm_network.nii.gz'), parcel_mask)
 
-	#MGH_avadj = np.load('MGH_adj_CA_4mm.npy')
+	MGH_avadj = np.load('MGH_adj_CA_4mm.npy')
 	#NKI_avadj = np.load('NKI_adj_CA_4mm.npy')
 
 	max_cost = .15
@@ -734,12 +734,12 @@ if __name__ == "__main__":
 
 				tmp_matrix = threshold(matrix.copy(), cost)
 
-				#PC[i,:] = bct.participation_coef(tmp_matrix, CI)
-				WMD[i,:] = bct.module_degree_zscore(tmp_matrix,CI)
+				PC[i,:] = bct.participation_coef(tmp_matrix, CI)
+				#WMD[i,:] = bct.module_degree_zscore(tmp_matrix,CI)
 				#EC[i,:] = bct.eigenvector_centrality_und(tmp_matrix)
 				#GC[i,:], _ = bct.gateway_coef_sign(tmp_matrix, CI)
 				#SC[i,:] = bct.subgraph_centrality(tmp_matrix)
-				ST[i,:] = bct.strengths_und(tmp_matrix)
+				#ST[i,:] = bct.strengths_und(tmp_matrix)
 
 				mes = 'finished running cost:%s' %cost
 				print(mes)
@@ -757,12 +757,12 @@ if __name__ == "__main__":
 		# fn = 'images/Voxelwise_4mm_%s_zWeightedDegree.nii' %dsets[ix]
 		# write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(ST,axis=0)), fn, 'voxelwise')
 
-		#fn = 'images/Voxelwise_4mm_%s_PC.nii' %dsets[ix]
-		#write_graph_to_vol_yeo_template_nifti(np.nanmean(PC,axis=0), fn, 'voxelwise')
+		fn = 'images/Voxelwise_4mm_%s_PC.nii' %dsets[ix]
+		write_graph_to_vol_yeo_template_nifti(np.nanmean(PC,axis=0), fn, 'voxelwise')
 
 		#zscore version, eseentialy ranking across parcels/roi
-		#fn = 'images/Voxelwise_4mm_%s_zPC.nii' %dsets[ix]
-		#write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(PC,axis=0)), fn, 'voxelwise')
+		fn = 'images/Voxelwise_4mm_%s_zPC.nii' %dsets[ix]
+		write_graph_to_vol_yeo_template_nifti(zscore(np.nanmean(PC,axis=0)), fn, 'voxelwise')
 
 		# fn = 'images/Voxelwise_4mm_%s_EigenC.nii' %dsets[ix]
 		# write_graph_to_vol_yeo_template_nifti(np.nanmean(EC,axis=0), fn, 'voxelwise')
