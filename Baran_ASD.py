@@ -20,8 +20,12 @@ for ix, s in enumerate(subjects):
         fuctional_image = nilearn.image.concat_imgs(f_files)
 
     # load ts
-    atlases = ['/home/kahwang/bsh/Baran_ASD/ROIs/Schaefer400+YeoThalamus_17network_3mm.nii.gz', '/home/kahwang/bsh/Baran_ASD/ROIs/Schaefer400+YeoThalamus_7network_3mm.nii.gz']
-    CI = [np.loadtxt('/home/kahwang/bin/example_graph_pipeline/SchaefferYeo17_CI'), np.loadtxt('/home/kahwang/bin/example_graph_pipeline/SchaefferYeo7_CI')]
+    # below is the functional atlas appraoch.
+    #atlases = ['/home/kahwang/bsh/Baran_ASD/ROIs/Schaefer400+YeoThalamus_17network_3mm.nii.gz', '/home/kahwang/bsh/Baran_ASD/ROIs/Schaefer400+YeoThalamus_7network_3mm.nii.gz']
+    #CI = [np.loadtxt('/home/kahwang/bin/example_graph_pipeline/SchaefferYeo17_CI'), np.loadtxt('/home/kahwang/bin/example_graph_pipeline/SchaefferYeo7_CI')]
+    #June 2021, use anatomical masks.
+    atlases = ['/home/kahwang/bsh/Baran_ASD/ROIs/fsl_schaefer7.nii.gz', '/home/kahwang/bsh/Baran_ASD/ROIs/fsl_schaefer17.nii.gz']
+    CI = [np.loadtxt('/home/kahwang/bin/example_graph_pipeline/fsl_schaefer7CI'), np.loadtxt('/home/kahwang/bin/example_graph_pipeline/fsl_schaefer17CI')]
 
     df.loc[ix, 'Subject'] = s
 
@@ -55,4 +59,5 @@ for ix, s in enumerate(subjects):
             for roi in rois:
                 df.loc[ix, 'PC_7Network_ThaROI' + str(roi+1)] = PC[roi]
 
-df.to_csv('Thalamus_PC.csv')
+
+df.to_csv('Thalamus_fslROIs_PC.csv')
